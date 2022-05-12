@@ -1,7 +1,5 @@
 numpy
 opencv-python
-os
-glob
 matplotlib
 tensorflow
 keras>=2.8.0
