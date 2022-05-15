@@ -23,14 +23,14 @@ from matplotlib import pyplot as plt
 
 
 #Resizing images, if needed
-SIZE_X = 608 
-SIZE_Y = 608
-n_classes=5 #Number of classes for segmentation
+SIZE_X = 1024 
+SIZE_Y = 1024
+n_classes=4 #Number of classes for segmentation
 
 #Capture training image info as a list
 train_images = []
-imdir ="/data/images"
-maskdir ="/data/masks"
+imdir ="/content/drive/MyDrive/Segmentation_Dataset/png-imgs/train"
+maskdir ="/content/drive/MyDrive/Segmentation_Dataset/masks"
 
 # ext = ['png', 'jpg', 'gif']    # Add image formats here
 
@@ -41,7 +41,7 @@ maskdir ="/data/masks"
 # images = [cv2.imread(file) for file in imgfiles]
 print('Reading Images .....')
 for directory_path in glob.glob(imdir):
-    for img_path in glob.glob(os.path.join(directory_path, "*.jpg")):
+    for img_path in glob.glob(os.path.join(directory_path, "*.png")):
         img = cv2.imread(img_path, 0)       
         img = cv2.resize(img, (SIZE_Y, SIZE_X))
         train_images.append(img)
@@ -51,14 +51,17 @@ train_images = np.array(train_images)
 #Capture mask/label info as a list
 train_masks = [] 
 for directory_path in glob.glob(maskdir):
-    for mask_path in glob.glob(os.path.join(directory_path, "*.jpg")):
-        mask = cv2.imread(mask_path, 0)       
+    for mask_path in glob.glob(os.path.join(directory_path, "*.png")):
+        mask = cv2.imread(mask_path, 0)  
+        
         mask = cv2.resize(mask, (SIZE_Y, SIZE_X), interpolation = cv2.INTER_NEAREST)  #Otherwise ground truth changes due to interpolation
         train_masks.append(mask)
+        # print(np.unique(train_masks))
+
      
 #Convert list to array for machine learning processing          
 train_masks = np.array(train_masks)
-# print(np.unique(train_masks))
+print(np.unique(train_masks))
 
 ###############################################
 #Encode labels... but multi dim array so need to flatten, encode and reshape
@@ -107,17 +110,17 @@ y_test_cat = test_masks_cat.reshape((y_test.shape[0], y_test.shape[1], y_test.sh
 
 
 ###############################################################
-# from sklearn.utils import class_weight
-# class_weights = class_weight.compute_class_weight(class_weight ='balanced',
-#                                                 classes = np.unique(train_masks_reshaped_encoded),
-#                                                 y =  train_masks_reshaped_encoded)
+from sklearn.utils import class_weight
+class_weights = class_weight.compute_class_weight(class_weight ='balanced',
+                                                classes = np.unique(train_masks_reshaped_encoded),
+                                                y =  train_masks_reshaped_encoded)
 
 # class_weights = compute_class_weight(
 #                                         class_weight = "balanced",
 #                                         classes = np.unique(train_classes),
 #                                         y = train_classes                                                    
 #                                     )
-# class_weights = dict(zip(np.unique(train_masks_reshaped_encoded), class_weights))
+class_weights = dict(zip(np.unique(train_masks_reshaped_encoded), class_weights))
 # class_weights = {i : class_weights[i] for i in range(5)}
 
 # class_weights=np.array([0.1,0.1 ,0.2, 0.3, 0.3])
@@ -135,6 +138,8 @@ def get_model():
 model = get_model()
 model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])#, sample_weight_mode="temporal")
 model.summary()
+# model.load_weights('/content/drive/MyDrive/python_for_microscopists/test.hdf5')  
+
 print('start training.....')
 #If starting with pre-trained weights. 
 #model.load_weights('???.hdf5')
@@ -149,7 +154,7 @@ history = model.fit(X_train, y_train_cat,
                     
 
 
-model.save('1000e-seg_model-806size.hdf5')
+model.save('1000e-seg_model-1024size.hdf5')
 #model.save('sandstone_50_epochs_catXentropy_acc_with_weights.hdf5')
 ############################################################
 #Evaluate the model
@@ -163,24 +168,24 @@ print("Accuracy is = ", (acc * 100.0), "%")
 loss = history.history['loss']
 val_loss = history.history['val_loss']
 epochs = range(1, len(loss) + 1)
-plt.plot(epochs, loss, 'y', label='Training loss')
-plt.plot(epochs, val_loss, 'r', label='Validation loss')
-plt.title('Training and validation loss')
-plt.xlabel('Epochs')
-plt.ylabel('Loss')
-plt.legend()
-plt.show()
+# plt.plot(epochs, loss, 'y', label='Training loss')
+# plt.plot(epochs, val_loss, 'r', label='Validation loss')
+# plt.title('Training and validation loss')
+# plt.xlabel('Epochs')
+# plt.ylabel('Loss')
+# plt.legend()
+# plt.show()
 
 acc = history.history['accuracy']
 val_acc = history.history['val_accuracy']
 
-plt.plot(epochs, acc, 'y', label='Training Accuracy')
-plt.plot(epochs, val_acc, 'r', label='Validation Accuracy')
-plt.title('Training and validation Accuracy')
-plt.xlabel('Epochs')
-plt.ylabel('Accuracy')
-plt.legend()
-plt.show()
+# plt.plot(epochs, acc, 'y', label='Training Accuracy')
+# plt.plot(epochs, val_acc, 'r', label='Validation Accuracy')
+# plt.title('Training and validation Accuracy')
+# plt.xlabel('Epochs')
+# plt.ylabel('Accuracy')
+# plt.legend()
+# plt.show()
 
 
 ##################################
@@ -196,7 +201,7 @@ y_pred_argmax=np.argmax(y_pred, axis=3)
 
 #Using built in keras function
 from keras.metrics import MeanIoU
-n_classes = 5
+n_classes = 4
 IOU_keras = MeanIoU(num_classes=n_classes)  
 IOU_keras.update_state(y_test[:,:,:,0], y_pred_argmax)
 print("Mean IoU =", IOU_keras.result().numpy())
@@ -211,13 +216,13 @@ class3_IoU = values[2,2]/(values[2,2] + values[2,0] + values[2,1] + values[2,3] 
 class4_IoU = values[3,3]/(values[3,3] + values[3,0] + values[3,1] + values[3,2] + values[0,3]+ values[1,3]+ values[2,3])
 
 
-print("IoU for class1 is: ", class1_IoU)
-print("IoU for class2 is: ", class2_IoU)
-print("IoU for class3 is: ", class3_IoU)
-print("IoU for class4 is: ", class4_IoU)
+print("IoU for Background is: ", class1_IoU)
+print("IoU for Fieldis: ", class2_IoU)
+print("IoU for Center is: ", class3_IoU)
+print("IoU for Eighteen is: ", class4_IoU)
 
-plt.imshow(train_images[0, :,:,0], cmap='gray')
-plt.imshow(train_masks[0], cmap='gray')
+# plt.imshow(train_images[0, :,:,0], cmap='gray')
+# plt.imshow(train_masks[0], cmap='gray')
 #######################################################################
 #Predict on a few images
 #model = get_model()
